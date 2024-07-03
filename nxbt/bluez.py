@@ -92,6 +92,8 @@ def find_objects(bus, service_name, interface_name):
 
     return paths
 
+def check_docker_env():
+    return os.path.exists('/.dockerenv')
 
 def toggle_clean_bluez(toggle):
     """Enables or disables all BlueZ plugins,
@@ -138,14 +140,15 @@ def toggle_clean_bluez(toggle):
             # Override doesn't exist, no need to restart bluetooth
             return
 
-    # Reload units
-    _run_command(["systemctl", "daemon-reload"])
+    if not check_docker_env():
+        # Reload units
+        _run_command(["systemctl", "daemon-reload"])
 
-    # Reload the bluetooth service with input disabled
-    _run_command(["systemctl", "restart", "bluetooth"])
+        # Reload the bluetooth service with input disabled
+        _run_command(["systemctl", "restart", "bluetooth"])
 
-    # Kill a bit of time here to ensure all services have restarted
-    time.sleep(0.5)
+        # Kill a bit of time here to ensure all services have restarted
+        time.sleep(0.5)
 
 
 def clean_sdp_records():
