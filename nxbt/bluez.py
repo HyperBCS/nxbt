@@ -115,30 +115,31 @@ def toggle_clean_bluez(toggle):
     override_dir = Path("/run/systemd/system/bluetooth.service.d")
     override_path = override_dir / "nxbt.conf"
 
-    if toggle:
-        if override_path.is_file():
-            # Override exist, no need to restart bluetooth
-            return
+    if not check_docker_env():
+        if toggle:
+            if override_path.is_file():
+                # Override exist, no need to restart bluetooth
+                return
 
-        with open(service_path) as f:
-            for line in f:
-                if line.startswith("ExecStart="):
-                    exec_start = line.strip() + " --compat --noplugin=*"
-                    break
-            else:
-                raise Exception("systemd service file doesn't have a ExecStart line")
+            with open(service_path) as f:
+                for line in f:
+                    if line.startswith("ExecStart="):
+                        exec_start = line.strip() + " --compat --noplugin=*"
+                        break
+                else:
+                    raise Exception("systemd service file doesn't have a ExecStart line")
 
-        override = f"[Service]\nExecStart=\n{exec_start}"
+            override = f"[Service]\nExecStart=\n{exec_start}"
 
-        override_dir.mkdir(parents=True, exist_ok=True)
-        with override_path.open("w") as f:
-            f.write(override)
-    else:
-        try:
-            os.remove(override_path)
-        except FileNotFoundError:
-            # Override doesn't exist, no need to restart bluetooth
-            return
+            override_dir.mkdir(parents=True, exist_ok=True)
+            with override_path.open("w") as f:
+                f.write(override)
+        else:
+            try:
+                os.remove(override_path)
+            except FileNotFoundError:
+                # Override doesn't exist, no need to restart bluetooth
+                return
 
     if not check_docker_env():
         # Reload units
@@ -148,6 +149,10 @@ def toggle_clean_bluez(toggle):
         _run_command(["systemctl", "restart", "bluetooth"])
 
         # Kill a bit of time here to ensure all services have restarted
+        time.sleep(0.5)
+    else:
+        _run_command(["service", "bluetooth", "restart"])
+        
         time.sleep(0.5)
 
 
@@ -694,10 +699,14 @@ class BlueZ():
 
         :raises Exception: If the bluetooth service can't be restarted
         """
-
-        result = subprocess.run(
-            ["systemctl", "restart", "bluetooth"],
-            stderr=subprocess.PIPE)
+        if not check_docker_env():
+            result = subprocess.run(
+                ["systemctl", "restart", "bluetooth"],
+                stderr=subprocess.PIPE)
+        else:
+            result = subprocess.run(
+                ["service", "bluetooth", "restart"],
+                stderr=subprocess.PIPE)
 
         cmd_err = result.stderr.decode("utf-8").replace("\n", "")
         if cmd_err != "":
