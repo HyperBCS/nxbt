@@ -15,6 +15,7 @@ BLUEZ_OBJECT_PATH = "/org/bluez"
 ADAPTER_INTERFACE = SERVICE_NAME + ".Adapter1"
 PROFILEMANAGER_INTERFACE = SERVICE_NAME + ".ProfileManager1"
 DEVICE_INTERFACE = SERVICE_NAME + ".Device1"
+logger = logging.getLogger('nxbt')
 
 
 def find_object_path(bus, service_name, interface_name, object_name=None):
@@ -95,6 +96,22 @@ def find_objects(bus, service_name, interface_name):
 def check_docker_env():
     return os.path.exists('/.dockerenv')
 
+def get_bluez_object(max_attempts=10):
+    attempts = 0
+    last_error = None
+    while attempts < max_attempts:
+        try:
+            bus = dbus.SystemBus()
+            obj = bus.get_object('org.bluez', "/")
+            logger.debug("Successfully got the BlueZ object.")
+            return obj
+        except Exception as e:
+            logger.error(f"Attempt {attempts + 1}/{max_attempts}: BlueZ service is not available. Retrying...")
+            time.sleep(1)  # Wait for 1 second before retrying
+            attempts += 1
+            last_error = e
+    raise last_error
+
 def toggle_clean_bluez(toggle):
     """Enables or disables all BlueZ plugins,
     BlueZ compatibility mode, and removes all extraneous
@@ -152,8 +169,7 @@ def toggle_clean_bluez(toggle):
         time.sleep(0.5)
     else:
         _run_command(["service", "bluetooth", "restart"])
-        
-        time.sleep(0.5)
+        get_bluez_object()
 
 
 def clean_sdp_records():
@@ -707,6 +723,7 @@ class BlueZ():
             result = subprocess.run(
                 ["service", "bluetooth", "restart"],
                 stderr=subprocess.PIPE)
+            get_bluez_object()
 
         cmd_err = result.stderr.decode("utf-8").replace("\n", "")
         if cmd_err != "":
