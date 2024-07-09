@@ -74,7 +74,7 @@ def find_objects(bus, service_name, interface_name):
     :return: The D-Bus object paths matching the arguments
     :rtype: array
     """
-
+    get_bluez_object()
     manager = dbus.Interface(
         bus.get_object(service_name, "/"),
         "org.freedesktop.DBus.ObjectManager")
@@ -106,7 +106,7 @@ def get_bluez_object(max_attempts=10):
             logger.debug("Successfully got the BlueZ object.")
             return obj
         except Exception as e:
-            logger.error(f"Attempt {attempts + 1}/{max_attempts}: BlueZ service is not available. Retrying...")
+            logger.info(f"Attempt {attempts + 1}/{max_attempts}: BlueZ service is not available. Retrying...")
             time.sleep(1)  # Wait for 1 second before retrying
             attempts += 1
             last_error = e
