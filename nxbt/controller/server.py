@@ -148,8 +148,9 @@ class ControllerServer():
                     pass
 
             # Set Direct Input
-            if self.state["direct_input"]:
-                self.input.set_controller_input(self.state["direct_input"])
+            direct_input = self.state["direct_input"]
+            if direct_input:
+                self.input.set_controller_input(direct_input)
 
             self.protocol.process_commands(reply)
             self.input.set_protocol_input(state=self.state)
@@ -160,9 +161,11 @@ class ControllerServer():
                 self.logger.debug(format_msg_controller(msg))
 
             try:
-                # Cache the last packet to prevent overloading the switch
-                # with packets on the "Change Grip/Order" menu.
-                if msg[3:] != self.cached_msg:
+                # Bypass cache when direct input is active so held buttons
+                # are sent every tick instead of only on the keepalive.
+                # Cache is still used (no direct input) to avoid overloading
+                # the Switch on the "Change Grip/Order" menu.
+                if direct_input or msg[3:] != self.cached_msg:
                     itr.sendall(msg)
                     self.cached_msg = msg[3:]
                 # Send a blank packet every so often to keep the Switch
@@ -193,7 +196,7 @@ class ControllerServer():
                 mean_time = stat.mean(self.times)
 
                 self.logger.debug(
-                    f"Tick: {self.tick}, Mean Time: {str(1/mean_time)}")
+                    f"Tick: {self.tick}, Mean Time: {str(1/mean_time)}",flush=True)
 
 
     def save_connection(self, error, state=None):
